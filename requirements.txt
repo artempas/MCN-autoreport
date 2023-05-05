@@ -1,0 +1,5 @@
+pytelegrambotapi
+rocketchat-API
+apscheduler
+requests~=2.30.0
+python-dotenv
