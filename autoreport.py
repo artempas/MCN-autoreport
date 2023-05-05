@@ -123,7 +123,7 @@ def regenerate_cb(cb: types.CallbackQuery):
     bot.answer_callback_query(cb.id, "Regenerated")
 
 
-@bot.message_handler(commands=["GENERATE"])
+@bot.message_handler(commands=["generate"])
 def regenerate_msg(_):
     send_report()
 
