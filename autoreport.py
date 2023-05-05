@@ -131,7 +131,8 @@ def regenerate_msg(_):
 @bot.callback_query_handler(lambda c: c.data == "publish")
 def publish_report(cb: types.CallbackQuery):
     global REPORT
-    rocket.chat_post_message(REPORT, channel=getenv("ROCKET_CHANNEL_NAME"))
+    resp=rocket.chat_post_message(REPORT, channel=getenv("ROCKET_CHANNEL_NAME")).json()
+    rocket.chat_pin_message(resp['message']['_id'])
     bot.answer_callback_query(cb.id, "sent")
 
 
