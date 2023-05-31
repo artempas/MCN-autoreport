@@ -102,7 +102,8 @@ def make_report() -> str:
         other_tasks=component_to_text(components.get("OTHER"), "Прочее") or "",
         total_done=tasks["total"],
     )
-    report = re.sub(r"\n{2,}", "\n", report)
+    while "\n\n\n" in report:
+        report = report.replace("\n\n\n", "\n\n")
     return report
 
 
