@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from os import getenv
 from rocketchat_API.rocketchat import RocketChat
 from apscheduler.schedulers.background import BackgroundScheduler
+import re
 
 load_dotenv()
 
@@ -101,6 +102,7 @@ def make_report() -> str:
         other_tasks=component_to_text(components.get("OTHER"), "Прочее") or "",
         total_done=tasks["total"],
     )
+    report = re.sub(r"\n{2,}", "\n", report)
     return report
 
 
