@@ -21,13 +21,21 @@ MESSAGE = """
 
 Всего задач выполнено: {total_done}
 """
+TELEGRAM_MESSAGE = """
+📓*Обновления этой недели*
+
+{chatbot_tasks}
+
+{multichat_tasks}
+"""
 BUG = "🪲"
 TASK = "✔️"
 EPIC = "⚡️"
-IMPROVMENT = "⬆️"
+IMPROVEMENT = "⬆️"
 FEATURE = "❇️"
 ELSE = "➕"
 REPORT = MESSAGE
+TELEGRAM_REPORT = TELEGRAM_MESSAGE
 
 bot = TeleBot(getenv("TELETOKEN"))
 rocket = RocketChat(
@@ -55,7 +63,7 @@ def parse_to_components(tasks: list[dict]) -> dict[str, list[str]]:
             cur_task = ""
             match task["fields"]["issuetype"]["name"]:
                 case "Improvement":
-                    cur_task += IMPROVMENT
+                    cur_task += IMPROVEMENT
                 case "Task":
                     cur_task += TASK
                 case "New Feature":
@@ -92,7 +100,7 @@ def component_to_text(tasks: list[str], component_name: str) -> str | None:
         return None
 
 
-def make_report() -> str:
+def make_report() -> (str, str):
     tasks = get_tasks()
     components = parse_to_components(tasks["issues"])
     report = MESSAGE.format(
@@ -102,14 +110,20 @@ def make_report() -> str:
         other_tasks=component_to_text(components.get("OTHER"), "Прочее") or "",
         total_done=tasks["total"],
     )
+    telegram_report = TELEGRAM_MESSAGE.format(
+        chatbot_tasks=component_to_text(components.get("CHATBOT"), "Чат-боты") or "",
+        multichat_tasks=component_to_text(components.get("MULTICHAT"), "Мультичат") or "",
+    )
     while "\n\n\n" in report:
         report = report.replace("\n\n\n", "\n\n")
-    return report
+    return report, telegram_report
 
 
 def send_report():
-    global REPORT
-    REPORT = make_report()
+    global REPORT, TELEGRAM_REPORT
+    REPORT, TELEGRAM_REPORT = make_report()
+    pattern = re.compile(r"\(\[NP-[0-9]+]\(https://mcntelecom\.atlassian\.net/browse/NP-[0-9]+\)\)", re.IGNORECASE)
+    TELEGRAM_REPORT = pattern.sub('', TELEGRAM_REPORT)
     bot.send_message(
         getenv("CHAT_ID"),
         REPORT,
@@ -133,9 +147,10 @@ def regenerate_msg(_):
 
 @bot.callback_query_handler(lambda c: c.data == "publish")
 def publish_report(cb: types.CallbackQuery):
-    global REPORT
+    global REPORT, TELEGRAM_REPORT
     resp=rocket.chat_post_message(REPORT, channel=getenv("ROCKET_CHANNEL_NAME")).json()
     rocket.chat_pin_message(resp['message']['_id'])
+    bot.send_message(getenv("TELEGRAM_CHANNEL_CHAT_ID"), TELEGRAM_REPORT, parse_mode='Markdown')
     bot.answer_callback_query(cb.id, "sent")
 
 
