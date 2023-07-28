@@ -13,7 +13,7 @@ import re
 load_dotenv()
 
 MESSAGE = """
-📓*Отчёт за неделю*
+📓**Отчёт за неделю**
 
 {chatbot_tasks}
 
@@ -163,7 +163,7 @@ def publish_report(cb: types.CallbackQuery):
 
 @element.listener.on_startup
 async def send_to_element(room_id):
-    task = asyncio.create_task(element.api.send_text_message(room_id, REPORT))
+    task = asyncio.create_task(element.api.send_markdown_message(room_id, REPORT))
     task.add_done_callback(raise_exc)
     return task
 
