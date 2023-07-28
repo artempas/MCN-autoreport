@@ -1,5 +1,5 @@
 pytelegrambotapi
-rocketchat-API
 apscheduler
+simplematrixbotlib
 requests~=2.30.0
 python-dotenv

@@ -1,9 +1,13 @@
+import asyncio
+from threading import Thread
+
 from telebot import *
 import requests
 from dotenv import load_dotenv
 from os import getenv
-from rocketchat_API.rocketchat import RocketChat
+# from rocketchat_API.rocketchat import RocketChat
 from apscheduler.schedulers.background import BackgroundScheduler
+import simplematrixbotlib as botlib
 import re
 
 load_dotenv()
@@ -38,11 +42,12 @@ REPORT = MESSAGE
 TELEGRAM_REPORT = TELEGRAM_MESSAGE
 
 bot = TeleBot(getenv("TELETOKEN"))
-rocket = RocketChat(
-    user_id=getenv("ROCKET_CHAT_USER_ID"),
-    auth_token=getenv("ROCKET_CHAT_API_TOKEN"),
-    server_url=getenv("ROCKET_SERVER_URL"),
-)
+# rocket = RocketChat(
+#     user_id=getenv("ROCKET_CHAT_USER_ID"),
+#     auth_token=getenv("ROCKET_CHAT_API_TOKEN"),
+#     server_url=getenv("ROCKET_SERVER_URL"),
+# )
+element=botlib.Bot(botlib.Creds(getenv('ELEMENT_SERVER_URL'), getenv("ELEMENT_USERNAME"), getenv("ELEMENT_PASSWORD")))
 schedule = BackgroundScheduler()
 
 
@@ -119,7 +124,8 @@ def make_report() -> (str, str):
     return report, telegram_report
 
 
-def send_report():
+@bot.message_handler(commands=['start'])
+def send_report(_=None):
     global REPORT, TELEGRAM_REPORT
     REPORT, TELEGRAM_REPORT = make_report()
     pattern = re.compile(r"\(\[NP-[0-9]+]\(https://mcntelecom\.atlassian\.net/browse/NP-[0-9]+\)\)", re.IGNORECASE)
@@ -148,15 +154,25 @@ def regenerate_msg(_):
 @bot.callback_query_handler(lambda c: c.data == "publish")
 def publish_report(cb: types.CallbackQuery):
     global REPORT, TELEGRAM_REPORT
-    resp=rocket.chat_post_message(REPORT, channel=getenv("ROCKET_CHANNEL_NAME")).json()
+    #resp=rocket.chat_post_message(REPORT, channel=getenv("ROCKET_CHANNEL_NAME")).json()
     # rocket.chat_pin_message(resp['message']['_id'])
     bot.send_message(getenv("TELEGRAM_CHANNEL_CHAT_ID"), TELEGRAM_REPORT, parse_mode='Markdown')
     bot.answer_callback_query(cb.id, "sent")
+    th = Thread(target=element.run)
+    th.start()
 
+@element.listener.on_startup
+async def send_to_element(room_id):
+    task = asyncio.create_task(element.api.send_text_message(room_id, REPORT))
+    task.add_done_callback(raise_exc)
+    return task
+
+def raise_exc(_):
+    time.sleep(5)
+    raise Exception()
 
 if __name__ == "__main__":
-    schedule.add_job(send_report, "cron", day_of_week="fri", hour=19)
+    schedule.add_job(send_report, "cron", day_of_week="fri", hour=19, args=('',))
     schedule.start()
-    send_report()
-    print(bot.user.username)
     bot.polling()
+
