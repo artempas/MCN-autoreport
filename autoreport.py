@@ -12,10 +12,13 @@ import re
 
 load_dotenv()
 
+days_cnt=7
 MESSAGE = """
-📓**Отчёт за неделю**
+📓**Отчёт за последние {days_cnt} дней**
 
 {chatbot_tasks}
+
+{contact_center_tasks}
 
 {multichat_tasks}
 
@@ -26,7 +29,7 @@ MESSAGE = """
 Всего задач выполнено: {total_done}
 """
 TELEGRAM_MESSAGE = """
-📓*Обновления этой недели*
+📓*Последние обновления*
 
 {chatbot_tasks}
 
@@ -52,10 +55,11 @@ schedule = BackgroundScheduler()
 
 
 def get_tasks() -> dict:
+    global days_cnt
     response = requests.get(
         "https://mcntelecom.atlassian.net/rest/api/2/search",
         headers={"Content-Type": "application/json"},
-        params={"jql": "project = NP AND (resolutionDate >= -1w AND status = Done) ORDER BY Rank ASC"},
+        params={"jql": f"project = NP AND (resolutionDate >= -{days_cnt}d AND status = Done) ORDER BY Rank ASC"},
         auth=("artem1459@gmail.com", getenv("jiraToken")),
     )
     return response.json()
@@ -106,14 +110,17 @@ def component_to_text(tasks: list[str], component_name: str) -> str | None:
 
 
 def make_report() -> (str, str):
+    global days_cnt
     tasks = get_tasks()
     components = parse_to_components(tasks["issues"])
     report = MESSAGE.format(
         chatbot_tasks=component_to_text(components.get("CHATBOT"), "Чат-боты") or "",
         calltracking_tasks=component_to_text(components.get("CALLTRACKING"), "Коллтрекинг") or "",
         multichat_tasks=component_to_text(components.get("MULTICHAT"), "Мультичат") or "",
+        contact_center_tasks=component_to_text(components.get("CONTACT-CENTER"), "Контакт-центр") or "",
         other_tasks=component_to_text(components.get("OTHER"), "Прочее") or "",
         total_done=tasks["total"],
+        days_cnt=days_cnt
     )
     telegram_report = TELEGRAM_MESSAGE.format(
         chatbot_tasks=component_to_text(components.get("CHATBOT"), "Чат-боты") or "",
@@ -160,6 +167,13 @@ def publish_report(cb: types.CallbackQuery):
     bot.answer_callback_query(cb.id, "sent")
     th = Thread(target=element.run)
     th.start()
+
+@bot.message_handler(content_types=['text'])
+def set_days(msg):
+    global days_cnt
+    if (msg.text.isnumeric()):
+        days_cnt=int(msg.text)
+    bot.send_message(msg.chat.id, f"Number of days set to {days_cnt}")
 
 @element.listener.on_startup
 async def send_to_element(room_id):
