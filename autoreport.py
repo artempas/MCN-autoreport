@@ -175,7 +175,7 @@ def regenerate_msg(_):
 
 @bot.callback_query_handler(lambda c: c.data == "publish")
 def publish_report(cb: types.CallbackQuery):
-    global REPORT, TELEGRAM_REPORT
+    global REPORT, TELEGRAM_REPORT, NOTIFY
     #resp=rocket.chat_post_message(REPORT, channel=getenv("ROCKET_CHANNEL_NAME")).json()
     # rocket.chat_pin_message(resp['message']['_id'])
     bot.send_message(getenv("TELEGRAM_CHANNEL_CHAT_ID"), TELEGRAM_REPORT, parse_mode='Markdown')
