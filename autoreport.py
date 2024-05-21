@@ -39,7 +39,7 @@ TELEGRAM_MESSAGE = """
 
 {chatbot_tasks}
 
-{multichat_tasks}
+{contact_center_tasks}
 """
 BUG = "🪲"
 TASK = "✔️"
