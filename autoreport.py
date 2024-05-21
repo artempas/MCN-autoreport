@@ -139,7 +139,7 @@ def make_report() -> (str, str):
     )
     telegram_report = TELEGRAM_MESSAGE.format(
         chatbot_tasks=component_to_text(components.get("CHATBOT"), "Чат-боты") or "",
-        multichat_tasks=component_to_text(components.get("MULTICHAT"), "Мультичат") or "",
+        contact_center_tasks=component_to_text(components.get("CONTACT-CENTER"), "Контакт-центр") or "",
     )
     while "\n\n\n" in report:
         report = report.replace("\n\n\n", "\n\n")
