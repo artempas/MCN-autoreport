@@ -1,5 +1,7 @@
-pytelegrambotapi
-apscheduler
-simplematrixbotlib
+pytelegrambotapi~=4.18.1
+apscheduler~=3.10.4
+simplematrixbotlib~=2.11.0
 requests~=2.30.0
-python-dotenv
+python-dotenv~=1.0.1
+python-socketio~=5.11.2
+matplotlib~=3.9.0
