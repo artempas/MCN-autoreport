@@ -5,16 +5,19 @@ import time
 import socketio
 from telebot import *
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from os import getenv
+from socketio.exceptions import TimeoutError
 # from rocketchat_API.rocketchat import RocketChat
 from apscheduler.schedulers.background import BackgroundScheduler
 import simplematrixbotlib as botlib
 import re
 from statistics import fmean
 import matplotlib.pyplot as plt
-from traceback import format_exc
+import matplotlib.dates as mdates 
+import traceback
+import pickle
 
 load_dotenv()
 
@@ -323,17 +326,42 @@ def average_response_time():
     global GRAPH_FILE
     global TIMESTAMPS
     global RESPONSE_TIME
+    long_wait_zone=None
+    total_long_wait=timedelta(seconds=0)
+    long_wait=5
+    max_wait=0
+    for i in range(len(RESPONSE_TIME)):
+        if long_wait_zone is not None and max_wait<RESPONSE_TIME[i]: # Find max waiting time in zone
+            max_wait=RESPONSE_TIME[i]
+        if long_wait_zone is not None and RESPONSE_TIME[i]<long_wait: # long_wait_zone end
+            total_long_wait+=TIMESTAMPS[i]-long_wait_zone
+            plt.fill([long_wait_zone, long_wait_zone, TIMESTAMPS[i], TIMESTAMPS[i]], [long_wait, max_wait, max_wait, long_wait], 'y')
+            long_wait_zone=None
+            max_wait=0
+        elif long_wait_zone is None and RESPONSE_TIME[i]>=long_wait: # long_wait_zone start
+            long_wait_zone=TIMESTAMPS[i]
+            max_wait=RESPONSE_TIME[i]
+    if long_wait_zone is not None: # long_wait_zone end
+        total_long_wait+=TIMESTAMPS[-1]-long_wait_zone
+        plt.fill([long_wait_zone, long_wait_zone, TIMESTAMPS[-1], TIMESTAMPS[-1]], [long_wait, max_wait, max_wait, long_wait],'y', 0.5)
+        max_wait=0
+        long_wait_zone=None
+
     today=datetime.today().strftime("%d.%m.%Y")
     plt.plot(TIMESTAMPS,RESPONSE_TIME)
     plt.grid()
     plt.title(f'{today} Average response time: {fmean(RESPONSE_TIME):.2f}sec')
     plt.ylabel('Seconds')
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%H:%M")) 
+    stop=datetime.today().replace(hour=22, minute=0, second=0, microsecond=0)
+    plt.gca().set_xlim([stop-timedelta(days=1), stop])
+    plt.gca().set_ylim([0, max(RESPONSE_TIME)*1.1])
     plt.savefig(f"{today}.png")
     plt.clf()
     RESPONSE_TIME=[]
     TIMESTAMPS=[]
     ALERT=True
-    ALERT_MESSAGE=f'Report for {today}'
+    ALERT_MESSAGE=f'Report for {today}. Total long time wait (over {long_wait}sec): {total_long_wait}'
     GRAPH_FILE=f'{today}.png'
     th = Thread(target=element.run)
     th.start()
@@ -341,9 +369,24 @@ def average_response_time():
 
 
 if __name__ == "__main__":
+    try:
+        with open('timestamps.pckl', 'rb') as file:
+            TIMESTAMPS=pickle.load(file)
+        with open('response_time.pckl', 'rb') as file:
+            RESPONSE_TIME=pickle.load(file)
+        print('loaded old data')
+        print(RESPONSE_TIME)
+        print(TIMESTAMPS)
+    except Exception as e:
+        print('Error while undumping')
+        print(e)
     schedule.add_job(send_report, "cron", day_of_week="fri", hour=19, args=('',))
     schedule.add_job(widget_healthcheck, "interval", seconds=30)
     schedule.add_job(average_response_time, 'cron', hour=10)
     schedule.start()
     bot.polling()
-
+    print('Received stop signal. Dumping')
+    with open('timestamps.pckl', 'wb') as file:
+        pickle.dump(TIMESTAMPS, file)
+    with open('response_time.pckl', 'wb') as file:
+        pickle.dump(RESPONSE_TIME, file)
