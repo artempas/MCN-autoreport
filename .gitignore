@@ -3,3 +3,4 @@ venv
 store
 *.png
 session.txt
+*.pckl
